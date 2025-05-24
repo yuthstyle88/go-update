@@ -67,7 +67,7 @@ func init() {
 	controller.AllExtensionsMap.StoreExtensions(&extension.OfferedExtensions)
 	controller.ExtensionUpdaterTimeout = time.Millisecond * 1
 	serverCtx, log := logger.Setup(context.Background())
-	_, router := setupRouter(serverCtx, true)
+	_, router := setupRouter(serverCtx, true, false)
 
 	// Create a middleware that adds the context with logger to each request
 	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

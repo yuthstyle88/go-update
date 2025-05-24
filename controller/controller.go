@@ -2,7 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,7 +40,113 @@ var ExtensionUpdaterTimeout = time.Minute * 10
 // ProtocolFactory is the factory used to create protocol handlers
 var ProtocolFactory = &omaha.DefaultFactory{}
 
-func initExtensionUpdatesFromDynamoDB() {
+func initTableExtension(db *dynamodb.DynamoDB, data extension.Extensions) error {
+	tableName := "Extensions"
+
+	_, err := db.DeleteTable(&dynamodb.DeleteTableInput{
+		TableName: aws.String(tableName),
+	})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			// ถ้า error เป็น ResourceNotFoundException แสดงว่าไม่มีตารางอยู่แล้ว ให้ทำงานต่อได้
+			if aerr.Code() != dynamodb.ErrCodeResourceNotFoundException {
+				log.Printf("Error deleting table: %v\n", aerr.Error())
+				return err
+			}
+		} else {
+			log.Printf("Error: %v\n", err)
+			return err
+		}
+	} else {
+		log.Println("Delete success, waiting for table to be deleted...")
+
+		// รอให้ตารางถูกลบเสร็จสมบูรณ์
+		err = db.WaitUntilTableNotExists(&dynamodb.DescribeTableInput{
+			TableName: aws.String(tableName),
+		})
+		if err != nil {
+			log.Printf("Error waiting for table deletion: %v", err)
+			return err
+		}
+	}
+
+	input := &dynamodb.CreateTableInput{
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("ID"), // เก็บแค่ attribute ที่เป็น key
+				AttributeType: aws.String("S"),
+			},
+		},
+		KeySchema: []*dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("ID"),
+				KeyType:       aws.String("HASH"),
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+		TableName: aws.String(tableName),
+	}
+
+	_, err = db.CreateTable(input)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Table already exists") {
+			log.Printf("cannot create Extensions table: %v", err)
+		}
+	} else {
+		err = db.WaitUntilTableExists(&dynamodb.DescribeTableInput{
+			TableName: aws.String(tableName),
+		})
+		if err != nil {
+			return fmt.Errorf("error waiting for Extensions table to be ready: %v", err)
+		}
+	}
+	err = insertData(data, db)
+	return nil
+}
+
+func insertData(data extension.Extensions, db *dynamodb.DynamoDB) error {
+
+	for _, ext := range data {
+		item := map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(ext.ID),
+			},
+			"Version": {
+				S: aws.String(ext.Version),
+			},
+			"SHA256": {
+				S: aws.String(ext.SHA256),
+			},
+			"Title": {
+				S: aws.String(ext.Title),
+			},
+			"URL": {
+				S: aws.String(ext.URL),
+			},
+			"Disabled": {
+				BOOL: aws.Bool(ext.Blacklisted),
+			},
+		}
+
+		input := &dynamodb.PutItemInput{
+			Item:      item,
+			TableName: aws.String("Extensions"),
+		}
+
+		_, err := db.PutItem(input)
+		if err != nil {
+			return fmt.Errorf("ไม่สามารถบันทึกข้อมูลลงในตาราง Extensions: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func initExtensionUpdatesFromDynamoDB(initDB bool, data extension.Extensions) {
 	log := logger.New()
 	log.Info("Refreshing extensions from DynamoDB")
 
@@ -56,6 +164,16 @@ func initExtensionUpdatesFromDynamoDB() {
 
 	// Create DynamoDB client
 	svc := dynamodb.New(sess)
+	_, err = svc.ListTables(&dynamodb.ListTablesInput{})
+	if err != nil {
+		log.Error("ไม่สามารถเชื่อมต่อกับ DynamoDB: %v", err)
+		return
+	}
+	log.Info("เชื่อมต่อ DynamoDB สำเร็จ")
+
+	if initDB {
+		err = initTableExtension(svc, data)
+	}
 	params := &dynamodb.ScanInput{
 		TableName: aws.String("Extensions"),
 	}
@@ -128,9 +246,9 @@ func RefreshExtensionsTicker(extensionMapUpdater func()) {
 }
 
 // ExtensionsRouter is the router for /extensions endpoints
-func ExtensionsRouter(_ extension.Extensions, testRouter bool) chi.Router {
+func ExtensionsRouter(data extension.Extensions, testRouter bool, initDB bool) chi.Router {
 	if !testRouter {
-		RefreshExtensionsTicker(initExtensionUpdatesFromDynamoDB)
+		RefreshExtensionsTicker(func() { initExtensionUpdatesFromDynamoDB(initDB, data) })
 	}
 
 	r := chi.NewRouter()

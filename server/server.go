@@ -20,7 +20,7 @@ import (
 	chiware "github.com/go-chi/chi/v5/middleware"
 )
 
-func setupRouter(ctx context.Context, testRouter bool) (context.Context, *chi.Mux) {
+func setupRouter(ctx context.Context, testRouter bool, initDB bool) (context.Context, *chi.Mux) {
 	r := chi.NewRouter()
 	r.Use(chiware.RequestID)
 	r.Use(chiware.RealIP)
@@ -34,7 +34,7 @@ func setupRouter(ctx context.Context, testRouter bool) (context.Context, *chi.Mu
 		r.Use(logger.RequestLoggerMiddleware())
 	}
 	extensions := extension.OfferedExtensions
-	r.Mount("/extensions", controller.ExtensionsRouter(extensions, testRouter))
+	r.Mount("/extensions", controller.ExtensionsRouter(extensions, testRouter, initDB))
 	return ctx, r
 }
 
@@ -63,7 +63,10 @@ func StartServer() {
 		}()
 	}
 
-	serverCtx, r := setupRouter(serverCtx, false)
+	var initDB bool
+	initDB, _ = strconv.ParseBool(os.Getenv("INIT_DB"))
+
+	serverCtx, r := setupRouter(serverCtx, false, initDB)
 	port := ":8192"
 	log.Info("Starting HTTP server", "url", fmt.Sprintf("http://localhost%s", port))
 
