@@ -55,7 +55,7 @@ func GetS3ExtensionBucketHost(id string) string {
 
 // GetS3TorExtensionBucketHost returns the url to use for accessing tor client crx
 func GetS3TorExtensionBucketHost() string {
-	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor."+iBroweName+".com")
+	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor."+iBroweName+"software.com")
 }
 
 // GetUpdateStatus returns the status of an update response for an extension
