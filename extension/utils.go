@@ -12,11 +12,16 @@ var torClientLinuxArm64ExtensionID = "monolafkoghdlanndjfeebmdfkbklejg"
 var torPluggableTransportsMacExtensionID = "einfndjnccmoohcngmlldpmellegjjnk"
 var torPluggableTransportsWindowsExtensionID = "dnkcahhmfcanmkjhnjejoomdihffoefm"
 var torPluggableTransportsLinuxExtensionID = "apfggiafobakjahnkchiecbomjgigkkn"
+var iBroweName string
 
 // TorClientExtensionIDs is used to add an exception to return the dedicated
 // proxy url for downloading the tor client crx
 var TorClientExtensionIDs = []string{torClientMacExtensionID, torClientWindowsExtensionID, torClientLinuxExtensionID, torClientLinuxArm64ExtensionID}
 var TorPluggableTransportsExtensionIDs = []string{torPluggableTransportsMacExtensionID, torPluggableTransportsWindowsExtensionID, torPluggableTransportsLinuxExtensionID}
+
+func init() {
+	iBroweName = lookupEnvFallback("IBROWE_DOMAIN", "ibrowe")
+}
 
 func isTorExtension(id string) bool {
 	for _, torID := range TorClientExtensionIDs {
@@ -45,12 +50,12 @@ func GetS3ExtensionBucketHost(id string) string {
 		return GetS3TorExtensionBucketHost()
 	}
 
-	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST", "brave-core-ext.s3.brave.com")
+	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST", "brave-core-ext.s3."+iBroweName+".com")
 }
 
 // GetS3TorExtensionBucketHost returns the url to use for accessing tor client crx
 func GetS3TorExtensionBucketHost() string {
-	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor.bravesoftware.com")
+	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor."+iBroweName+".com")
 }
 
 // GetUpdateStatus returns the status of an update response for an extension
@@ -63,5 +68,5 @@ func GetUpdateStatus(extension Extension) string {
 
 // GetComponentUpdaterHost returns the url to use for extension updates
 func GetComponentUpdaterHost() string {
-	return lookupEnvFallback("COMPONENT_UPDATER_HOST", "componentupdater.brave.com")
+	return lookupEnvFallback("COMPONENT_UPDATER_HOST", "componentupdater."+iBroweName+".com")
 }
