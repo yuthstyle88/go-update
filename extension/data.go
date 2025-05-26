@@ -64,7 +64,7 @@ var OfferedExtensions = Extensions{
 		Version:     "1.0.1174",
 		SHA256:      "2030cd3828cd69af41c71f99ad715ba59de0028139af7d6386a15b1e31888822",
 		Title:       "iBrowe Local Data Files Updater",
-		URL:         "https://brave-core-ext.s3.ibrowe.com/release/afalakplffnnnlkncjhbmahjfjhmlkal/extension_1.0.1174.crx",
+		URL:         "https://brave-core-ext.s3.brave.com/release/afalakplffnnnlkncjhbmahjfjhmlkal/extension_1.0.1174.crx",
 		Blacklisted: false,
 	},
 	{
