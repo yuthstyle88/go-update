@@ -367,7 +367,7 @@ func WebStoreUpdateExtension(w http.ResponseWriter, r *http.Request) {
 // UpdateExtensions is the handler for updating extensions
 func UpdateExtensions(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("content-type")
-	jsonPrefix := []byte(")]}'\n")
+	//jsonPrefix := []byte(")]}'\n")
 
 	logger := logger.FromContext(r.Context())
 	defer func() {
@@ -468,9 +468,9 @@ func UpdateExtensions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if protocol.IsJSONRequest(contentType) {
-		data = append(jsonPrefix, data...)
-	}
+	//if protocol.IsJSONRequest(contentType) {
+	//	data = append(jsonPrefix, data...)
+	//}
 
 	_, err = w.Write(data)
 	if err != nil {
