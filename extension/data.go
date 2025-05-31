@@ -411,4 +411,12 @@ var OfferedExtensions = Extensions{
 		URL:         "https://brave-core-ext.s3.brave.com/release/biahpgbdmdkfgndcmfiipgcebobojjkp/extension_1_0_1.crx",
 		Blacklisted: false,
 	},
+	{
+		ID:          "hpkcniamlhhhnnojaemlpmlkfjljakac",
+		Version:     "1.0.0",
+		SHA256:      "",
+		Title:       "iBrowe Local Data Updater",
+		URL:         "",
+		Blacklisted: false,
+	},
 }
