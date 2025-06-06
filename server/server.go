@@ -36,6 +36,10 @@ func setupRouter(ctx context.Context, testRouter bool, initDB bool) (context.Con
 	}
 	extensions := extension.OfferedExtensions
 	r.Mount("/extensions", controller.ExtensionsRouter(extensions, testRouter, initDB))
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 	return ctx, r
 }
 

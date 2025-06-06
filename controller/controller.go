@@ -255,10 +255,6 @@ func ExtensionsRouter(data extension.Extensions, testRouter bool, initDB bool) c
 	r.Post("/", UpdateExtensions)
 	r.Get("/", WebStoreUpdateExtension)
 	r.Get("/test", PrintExtensions)
- r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
-})
 	return r
 }
 

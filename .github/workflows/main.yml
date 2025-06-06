@@ -64,7 +64,6 @@ jobs:
         ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
          set -e  # หยุดทันทีถ้าเกิด error
          echo "Restart App..."
-          set -e
           cd ${{ env.APP_PATH }}
 
           # 🛑 Stop old process if exists
