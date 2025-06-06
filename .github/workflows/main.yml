@@ -303,13 +303,13 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Running pre-flight checks..."
-          ssh -p 53987 ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'EOF'
+          ssh -p 53987 ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e  # หยุดทันทีถ้าเกิด error
             echo "Start bDeploy..."
              # Deploy files
-            scp -P ${{ env.SSH_PORT }} \
+            scp -P ${{ secrets.SSH_PORT }} \
               deploy.sh  bin/${{ env.APP_NAME }} \
-              ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.APP_PATH }}/${{ env.APP_NAME }}
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/${{ env.APP_NAME }}
             ./deploy.sh
           EOF
 
