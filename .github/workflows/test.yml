@@ -1,4 +1,4 @@
-name: Build & Deploy App
+name: Build & Deploy Go App
 
 on:
   push:
@@ -10,25 +10,35 @@ env:
   APP_PATH: /var/www/dev/go-updater
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: 📥 Checkout source code
       uses: actions/checkout@v3
 
-    - name: 🛠️ Build app (Go)
+    - name: 🛠️ Build Go App
       run: |
         go build -o $APP_NAME main.go
 
-    - name: 📤 Copy files to server
+    - name: 🧾 Create .env from secrets
+      run: |
+        cat <<EOF > .env
+        APP_ENV=production
+        DB_HOST=${{ secrets.DB_HOST }}
+        DB_USER=${{ secrets.DB_USER }}
+        DB_PASS=${{ secrets.DB_PASS }}
+        CUSTOM_KEY=${{ secrets.CUSTOM_KEY }}
+        EOF
+
+    - name: 🚚 Copy files to server
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT }}
-        source: ".env,.secrets,main,app.sh"
+        source: ".env,main,app.sh"
         target: "${{ env.APP_PATH }}"
 
     - name: 🚀 Restart app on server
