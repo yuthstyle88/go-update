@@ -67,7 +67,7 @@ func StartServer() {
 	initDB, _ = strconv.ParseBool(os.Getenv("INIT_DB"))
 
 	serverCtx, r := setupRouter(serverCtx, false, initDB)
-	port := ":8192"
+	port := ":" + os.Getenv("APP_PORT")
 	log.Info("Starting HTTP server", "url", fmt.Sprintf("http://localhost%s", port))
 
 	srv := http.Server{
