@@ -303,22 +303,9 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Running pre-flight checks..."
-          ssh -p 53987 yuth@103.27.202.40 << 'EOF'
+          ssh -p 53987 deploy@103.27.202.40 << 'EOF'
             set -e  # หยุดทันทีถ้าเกิด error
-            echo "Checking /var/www directory..."
-            if [ ! -d "/var/www" ]; then
-              echo "Creating /var/www directory..."
-              sudo mkdir -p /var/www
-            fi
-            echo "Creating /var/www/dev directory..."
-            if [ ! -d "/var/www/dev" ]; then
-              echo "Creating /var/www directory..."
-              sudo mkdir -p /var/www/dev
-            fi
             echo "Setting permissions..."
-            sudo chown -R yuth:yuth /var/www/dev
-            echo "Checking directory exists..."
-            ls -la /var/www/dev
              # Deploy files
             scp -P ${{ env.SSH_PORT }} \
               deploy.sh .env .secrets bin/${{ env.APP_NAME }} \
