@@ -322,7 +322,7 @@ jobs:
         if: success()
         run: |
           sleep 5
-          curl -sf http://${{ env.SSH_HOST }}:${{ env.APP_PORT }}/health
+          curl -sf http://127.0.0.1:${{ env.APP_PORT }}/health
 
       - name: Notify Status
         if: always()
