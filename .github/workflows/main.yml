@@ -109,7 +109,7 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Copy file to  Server Deploy"
-          scp -P ${{ secrets.SSH_PORT }} .env .secrets \
+          scp -P ${{ secrets.SSH_PORT }} /home/runner/work/go-update/go-update/.env /home/runner/work/go-update/go-update/.secrets \
               bin/${{ env.APP_NAME }} \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/     
           echo "Login to  Server and run app"
