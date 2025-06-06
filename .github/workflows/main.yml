@@ -302,8 +302,8 @@ jobs:
 
       - name: Check Server and Create Directory and Deploy
         run: |
-          echo "Running pre-flight checks..."
-          ssh -p 53987 ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          echo "Check Server and Create Directory and Deploy"
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e  # หยุดทันทีถ้าเกิด error
             echo "Start bDeploy..."
              # Deploy files
