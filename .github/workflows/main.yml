@@ -65,7 +65,7 @@ jobs:
          set -e  # หยุดทันทีถ้าเกิด error
          echo "App name : ${{ env.APP_NAME }}"        
          echo "Restart App..."
-         cd ${{ env.APP_NAME }}
+         cd ${{ env.APP_PATH }}
           
          PIDS=$(pgrep -f "./${{ env.APP_NAME }}")
          echo "Killing old processes: $PIDS"
