@@ -303,17 +303,14 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Running pre-flight checks..."
-          ssh -p 53987 deploy@103.27.202.40 << 'EOF'
+          ssh -p 53987 ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'EOF'
             set -e  # หยุดทันทีถ้าเกิด error
-            echo "Setting permissions..."
+            echo "Start bDeploy..."
              # Deploy files
             scp -P ${{ env.SSH_PORT }} \
-              deploy.sh .env .secrets bin/${{ env.APP_NAME }} \
-              ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:~/
-  
-            # Execute deployment
-            ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-              "./deploy.sh"
+              deploy.sh  bin/${{ env.APP_NAME }} \
+              ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.APP_PATH }}/${{ env.APP_NAME }}
+            ./deploy.sh
           EOF
 
       - name: Cleanup
