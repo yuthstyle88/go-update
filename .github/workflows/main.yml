@@ -66,8 +66,8 @@ jobs:
             else
               echo "No old process found"
             fi
-          echo "Copy file to Server Deploy"
         EOF
+        echo "Copy file to Server Deploy"
         scp -P ${{ secrets.SSH_PORT }} .env .secrets \
           bin/${{ env.APP_NAME }} \
           ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/ 
@@ -77,8 +77,4 @@ jobs:
         nohup ./$(echo ${{ env.APP_NAME }}) > app.log 2>&1 &
         echo "Started ${{ env.APP_NAME }}"
         EOF
-    - name: Run health check and send webhook
-      run: |
-        STATUS=$(curl -v --max-time 2 -o /dev/null -s -w "%{http_code}" http://localhost:8191/health)        
-        echo "Health status: $STATUS"
  
