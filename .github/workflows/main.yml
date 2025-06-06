@@ -82,8 +82,10 @@ jobs:
 
           # 🚀 Start new process
           echo "Starting new process: ./${{ env.APP_NAME }}"
-          nohup ./${{ env.APP_NAME }}
-    
+          ./${{ env.APP_NAME }}
+          
+          # nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
+          
 
     - name: Run health check and send webhook
       run: |
