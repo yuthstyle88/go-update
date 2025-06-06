@@ -66,7 +66,7 @@ jobs:
          echo "Restart App..."
           cd ${{ env.APP_PATH }}
           
-          PIDS=$(pgrep -f "./${APP_NAME}")
+          PIDS=$(pgrep -f "./${{ env.APP_NAME }}")
 
           # 🛑 Stop old process if exists
           if [ -n "$PIDS" ]; then
