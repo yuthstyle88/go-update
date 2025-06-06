@@ -94,6 +94,7 @@ jobs:
           ssh-keyscan -p 53987 103.27.202.40 >> ~/.ssh/known_hosts
       - name: Create Environment Files
         run: |
+          pwd
           cat << EOF > .env
           export APP_NAME="${{ env.APP_NAME }}"
           export APP_PATH="${{ env.APP_PATH }}"
@@ -108,7 +109,7 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Copy file to  Server Deploy"
-          scp -P ${{ secrets.SSH_PORT }} .env \
+          scp -P ${{ secrets.SSH_PORT }} .env .secrets \
               bin/${{ env.APP_NAME }} \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/     
           echo "Login to  Server and run app"
