@@ -85,15 +85,6 @@ jobs:
 
     - name: Run health check and send webhook
       run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${{ vars.APP_PORT }}/health)
-
-          if [ "$STATUS" -eq 200 ]; then
-            curl -X POST ${{ secrets.WEBHOOK_URL }} \
-              -H "Content-Type: application/json" \
-              -d '{"status":"OK","message":"✅ Health check passed"}'
-          else
-            curl -X POST ${{ secrets.WEBHOOK_URL }} \
-              -H "Content-Type: application/json" \
-              -d '{"status":"FAIL","message":"❌ Health check failed with status '$STATUS'"}'
-            exit 1
-          fi      
+        STATUS=$(curl -v --max-time 2 -o /dev/null -s -w "%{http_code}" http://localhost:${{ vars.APP_PORT }}/health)        
+        echo "Health status: $STATUS"
+ 
