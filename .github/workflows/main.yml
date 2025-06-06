@@ -58,7 +58,7 @@ jobs:
         EOF
 
     - name: 🔐 Setup SSH
-      uses: webfactory/ssh-agent@v0.8.1
+      uses: webfactory/ssh-agent@v0.7.2
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
