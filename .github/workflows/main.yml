@@ -15,34 +15,32 @@ on:
           - staging
           - production
 
-env:
-  GO_VERSION: "1.24.3"
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     env:
-      APP_PATH: ${{ vars.APP_PATH }}
+      BASE_NAME: go-updater
       APP_PORT: ${{ vars.APP_PORT }}
-      APP_NAME: ${{ vars.APP_NAME }}
+      APP_PATH: ${{ vars.APP_PATH }}
 
     steps:
-    - name: 📥 Checkout Code
+    - name: 📥 Checkout code
       uses: actions/checkout@v4
 
     - name: 🔧 Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version: "1.21.0"
 
-    - name: 🛠️ Build Go Binary
+    - name: 🛠️ Build app and define APP_NAME
       run: |
+        echo "APP_NAME=${BASE_NAME}-${{ inputs.environment }}" >> $GITHUB_ENV
         mkdir -p bin
-        go build -ldflags="-w -s" -o bin/${APP_NAME}
-        chmod +x bin/${APP_NAME}
+        go build -ldflags="-w -s" -o bin/${BASE_NAME}-${{ inputs.environment }}
+        chmod +x bin/${BASE_NAME}-${{ inputs.environment }}
 
-    - name: 📄 Generate .env
+    - name: 📄 Create .env file
       uses: SpicyPizza/create-envfile@v2.0
       with:
         envkey_APP_NAME: ${{ env.APP_NAME }}
@@ -50,7 +48,7 @@ jobs:
         envkey_ENVIRONMENT: ${{ inputs.environment }}
         file_name: .env
 
-    - name: 📄 Generate .secrets
+    - name: 📄 Create .secrets file
       run: |
         cat << EOF > .secrets
         export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
@@ -59,12 +57,12 @@ jobs:
         export DYNAMODB_ENDPOINT='http://localhost:4565'
         EOF
 
-    - name: 🔐 SSH Setup
+    - name: 🔐 Setup SSH
       uses: webfactory/ssh-agent@v0.8.1
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: 🚚 Deploy to Server (scp)
+    - name: 🚚 Deploy files to server
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.SSH_HOST }}
@@ -73,13 +71,26 @@ jobs:
         source: ".env,.secrets,bin/${{ env.APP_NAME }}"
         target: "${{ env.APP_PATH }}"
 
-    - name: 🚀 Run App via SSH
+    - name: 🚀 Restart app on server (no basename)
       uses: appleboy/ssh-action@v0.1.10
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         port: ${{ secrets.SSH_PORT }}
         script: |
+          set -e
           cd ${{ env.APP_PATH }}
+
+          # 🛑 Stop old process if exists
+          if pgrep -f "./${{ env.APP_NAME }}" > /dev/null; then
+            echo "Stopping old process..."
+            pkill -f "./${{ env.APP_NAME }}"
+            sleep 1
+          fi
+
+          # 🔐 Load secrets
           source .secrets
+
+          # 🚀 Start new process
+          echo "Starting new process: ./${{ env.APP_NAME }}"
           nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
