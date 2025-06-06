@@ -65,24 +65,26 @@ jobs:
          set -e  # หยุดทันทีถ้าเกิด error
          echo "App name : ${{ env.APP_NAME }}"        
          echo "Restart App..."
-         # cd "${APP_PATH}"
+         cd ${{ env.APP_NAME }}
           
-         #         PIDS=$(pgrep -f "./${APP_NAME}")
-         #         echo "Killing old processes: $PIDS"
+         PIDS=$(pgrep -f "./${{ env.APP_NAME }}")
+         echo "Killing old processes: $PIDS"
          # 🛑 Stop old process if exists
-         #          if [ -n "$PIDS" ]; then
-         #        echo "Killing old processes: $PIDS"
-         #          kill -9 $PIDS
-         #          sleep 1
-         #          fi
-         #
-         #          # 🔐 Load secrets
-         #          source .secrets
-         #
-         #        # 🚀 Start new process
-         #        echo "Starting new process: ./${APP_NAME}"
-         #          ./${APP_NAME}
-         #
+            if [ -n "$PIDS" ]; then
+                 echo "Killing old processes: $PIDS"
+                 kill -9 $PIDS
+                 sleep 1
+            else
+                 echo "No old process found"
+            fi
+  
+         # 🔐 Load secrets
+         source .secrets
+
+         # 🚀 Start new process
+         echo "Starting new process: ./${{ env.APP_NAME }}"
+         ./${{ env.APP_NAME }}
+
          # nohup ./${APP_NAME} > /dev/null 2>&1 &
           
         EOF 
