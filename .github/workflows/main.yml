@@ -92,11 +92,8 @@ jobs:
           
           echo "=== Start new process ==="
           nohup ./go-updater-development > app.log 2>&1 &
-          
           echo "Restart สำเร็จ"
-          EOF
-
-
+        EOF
     - name: Run health check and send webhook
       run: |
         STATUS=$(curl -v --max-time 2 -o /dev/null -s -w "%{http_code}" http://localhost:8191/health)        
