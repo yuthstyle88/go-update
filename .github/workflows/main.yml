@@ -96,10 +96,9 @@ jobs:
         run: |
           pwd
           cat << EOF > .env
-          export APP_NAME="${{ env.APP_NAME }}"
-          export APP_PATH="${{ env.APP_PATH }}"
-          export APP_PORT=${{ env.APP_PORT }}
-          export ENVIRONMENT="${{ inputs.environment }}"
+          APP_NAME="${{ env.APP_NAME }}"
+          APP_PORT=${{ env.APP_PORT }}
+          ENVIRONMENT="${{ inputs.environment }}"
           EOF
 
           cat << EOF > .secrets
@@ -110,7 +109,7 @@ jobs:
       - name: Check Server and Create Directory and Deploy
         run: |
           echo "Copy file to  Server Deploy"
-          scp -P ${{ secrets.SSH_PORT }} /home/runner/work/go-update/go-update/.env /home/runner/work/go-update/go-update/.secrets \
+          scp -P ${{ secrets.SSH_PORT }} .env .secrets \
               bin/${{ env.APP_NAME }} \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/     
           echo "Login to  Server and run app"
