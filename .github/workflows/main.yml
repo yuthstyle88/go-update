@@ -52,47 +52,30 @@ jobs:
         mkdir -p ~/.ssh
         ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-    - name: 🚚 Deploy files to server
-      run: |
-        echo "Copy file to  Server Deploy"
-        scp -P ${{ secrets.SSH_PORT }} .env .secrets \
-            bin/${{ env.APP_NAME }} \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/  
-
     - name: 🚀 Restart app on server (no basename)
       run : |
         ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-         set -e
-  
-          cd /var/www/dev/go-updater
-          
+          set -e
+          cd ${{ env.APP_PATH }}
           echo "=== ตรวจสอบ process เก่า ==="
-          PIDS=$(pgrep -f "./go-updater-development" || true)
-          if [ -n "$PIDS" ]; then
-               echo "Killing old processes: $PIDS"
-               kill -9 $PIDS
-               sleep 1
-             else
-               echo "No old process found"
-          fi
-          
-          echo "=== โหลด secrets ==="
-          if [ ! -f ".secrets" ]; then
-             echo "ไม่เจอไฟล์ .secrets"
-             exit 1
-          fi
-          
-          source .secrets
-          
-          echo "=== ตรวจสอบ executable ==="
-          if [ ! -x "go-updater-development" ]; then
-             echo "เพิ่มสิทธิ์รันให้ go-updater-development"
-             chmod +x go-updater-development
-          fi
-          
-          echo "=== Start new process ==="
-          nohup ./go-updater-development > app.log 2>&1 &
-          echo "Restart สำเร็จ"
+          PIDS=$(pgrep -f "./${{ env.APP_NAME }}" || true)
+            if [ -n "$PIDS" ]; then
+              echo "Killing: $PIDS"
+              kill -9 $PIDS
+              sleep 1
+            else
+              echo "No old process found"
+            fi
+          echo "Copy file to Server Deploy"
+        EOF
+        scp -P ${{ secrets.SSH_PORT }} .env .secrets \
+          bin/${{ env.APP_NAME }} \
+          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/ 
+        ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+        cd ${{ env.APP_PATH }}
+        chmod +x ${{ env.APP_NAME }}
+        nohup ./$(echo ${{ env.APP_NAME }}) > app.log 2>&1 &
+        echo "Started ${{ env.APP_NAME }}"
         EOF
     - name: Run health check and send webhook
       run: |
