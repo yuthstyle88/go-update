@@ -1,0 +1,313 @@
+name: Initial Setup
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+jobs:
+  initial-setup:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      APP_PATH: ${{ vars.APP_PATH }}
+      APP_PORT: ${{ vars.APP_PORT }}
+      APP_NAME: ${{ vars.APP_NAME }}
+      GO_VERSION: "1.24.3"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Check Required Secrets
+        run: |
+          for secret in "SSH_PRIVATE_KEY" "WEBHOOK_URL"; do
+            if [ -z "${{ secrets[secret] }}" ]; then
+              echo "Error: $secret is not set"
+              exit 1
+            fi
+          done
+
+      - name: Test Application
+        run: |
+          go test -v ./...
+          go vet ./...
+
+      - name: Build Application
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          go build -v -ldflags="-w -s" -o bin/${{ env.APP_NAME }}
+
+      - name: Create Scripts
+        run: |
+          # สร้างไฟล์ deploy.sh
+          cat << 'DEPLOY_SCRIPT' > deploy.sh
+          #!/bin/bash
+          set -e
+          set -o pipefail
+
+          # Load environment and secrets
+          source .env 2>/dev/null || true
+          source .secrets 2>/dev/null || true
+
+          APP_DIR="${APP_PATH}/go-updater"
+
+          notify() {
+              local message="$1"
+              local level="${2:-info}"
+              if [ -n "$WEBHOOK_URL" ]; then
+                  local emoji="ℹ️"
+                  case $level in
+                      error) emoji="❌";;
+                      warning) emoji="⚠️";;
+                      success) emoji="✅";;
+                  esac
+          
+                  local hostname=$(hostname)
+                  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+                  local deploy_info="[${APP_NAME}] ${hostname} - ${timestamp}"
+          
+                  curl -s -X POST \
+                      -H 'Content-type: application/json' \
+                      --data "{\"text\":\"${emoji} ${deploy_info}\n${message}\"}" \
+                      "$WEBHOOK_URL" || true
+              fi
+          }
+
+          collect_metrics() {
+              local status="$1"
+              local metrics_dir="${APP_DIR}/metrics"
+              local metrics_file="${metrics_dir}/deploy_metrics.txt"
+          
+              mkdir -p "$metrics_dir"
+          
+              {
+                  echo "# HELP app_deploy_timestamp_seconds Unix timestamp of last deployment"
+                  echo "# TYPE app_deploy_timestamp_seconds gauge"
+                  echo "app_deploy_timestamp_seconds $(date +%s)"
+          
+                  echo "# HELP app_deploy_total Total number of deployments"
+                  echo "# TYPE app_deploy_total counter"
+                  echo "app_deploy_total{status=\"$status\",app=\"$APP_NAME\",env=\"$ENVIRONMENT\"} 1"
+          
+                  echo "# HELP app_last_deploy_status Deployment status (1=success, 0=failure)"
+                  echo "# TYPE app_last_deploy_status gauge"
+                  echo "app_last_deploy_status{app=\"$APP_NAME\",env=\"$ENVIRONMENT\"} $([[ $status == "success" ]] && echo 1 || echo 0)"
+              } > "$metrics_file"
+          }
+
+          warmup_application() {
+              echo "Warming up application..."
+              local endpoints=("/health" "/ready" "/metrics")
+              local success=true
+          
+              for endpoint in "${endpoints[@]}"; do
+                  echo -n "Testing $endpoint: "
+                  for i in {1..3}; do
+                      if curl -sf "http://localhost:$APP_PORT$endpoint" >/dev/null; then
+                          echo "OK"
+                          continue 2
+                      fi
+                      sleep 2
+                  done
+                  echo "FAIL"
+                  success=false
+              done
+          
+              $success || notify "Application warmup failed" "warning"
+              return $($success)
+          }
+
+          verify_deployment() {
+              echo "Verifying deployment..."
+          
+              # Check if APP_DIR exists
+              if [ ! -d "$APP_DIR" ]; then
+                  mkdir -p "$APP_DIR"
+              fi
+          
+              # Check binary checksum
+              local expected_sha=$(sha256sum $APP_NAME | cut -d' ' -f1)
+              echo "$expected_sha" > $APP_NAME.sha256
+          
+              # Verify binary permissions
+              chmod 755 $APP_NAME
+          
+              return 0
+          }
+
+          stop_app() {
+              if [ -f "$APP_DIR/app.pid" ]; then
+                  local pid=$(cat "$APP_DIR/app.pid")
+                  if kill -0 "$pid" 2>/dev/null; then
+                      echo "Stopping process $pid..."
+                      kill -TERM "$pid"
+                      for i in {1..30}; do
+                          if ! kill -0 "$pid" 2>/dev/null; then
+                              break
+                          fi
+                          sleep 1
+                      done
+                      if kill -0 "$pid" 2>/dev/null; then
+                          kill -KILL "$pid"
+                      fi
+                  fi
+                  rm -f "$APP_DIR/app.pid"
+              fi
+          }
+
+          rotate_logs() {
+              local log_dir="$APP_DIR/logs"
+              mkdir -p "$log_dir"
+          
+              if [ -f "$APP_DIR/app.log" ]; then
+                  mv "$APP_DIR/app.log" "${log_dir}/app_$(date +%Y%m%d_%H%M%S).log"
+                  find "$log_dir" -name "app_*.log" -mtime +7 -delete
+              fi
+          
+              # Compress older logs
+              find "$log_dir" -name "app_*.log" -mtime +1 -exec gzip {} \;
+          }
+
+          start_app() {
+              cd "$APP_DIR"
+              ./$APP_NAME > app.log 2>&1 &
+              echo $! > app.pid
+              chmod 644 app.pid
+          
+              local retries=0
+              local max_retries=30
+              while [ $retries -lt $max_retries ]; do
+                  if curl -s http://localhost:$APP_PORT/health >/dev/null; then
+                      echo "Application started successfully"
+                      return 0
+                  fi
+                  sleep 1
+                  ((retries++))
+                  echo -n "."
+              done
+              echo "Failed to start application after $max_retries seconds"
+              return 1
+          }
+
+          create_backup() {
+              local backup_dir="$APP_DIR/backups"
+              mkdir -p "$backup_dir"
+              if [ -f "$APP_DIR/$APP_NAME" ]; then
+                  local backup_file="${backup_dir}/backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+                  tar -czf "$backup_file" -C "$APP_DIR" $APP_NAME app.log 2>/dev/null || true
+                  find "$backup_dir" -name "backup_*.tar.gz" -mtime +7 -delete
+              fi
+          }
+
+          main() {
+              notify "🚀 Deployment started for $APP_NAME in $ENVIRONMENT" "info"
+          
+              create_backup
+              stop_app
+              rotate_logs
+          
+              # Move new binary to APP_DIR
+              mv $APP_NAME "$APP_DIR/"
+              cd "$APP_DIR"
+          
+              if ! verify_deployment; then
+                  notify "Deployment failed: Verification failed" "error"
+                  collect_metrics "failed"
+                  exit 1
+              fi
+          
+              if ! start_app; then
+                  notify "Deployment failed: Application failed to start" "error"
+                  collect_metrics "failed"
+                  exit 1
+              fi
+          
+              warmup_application
+          
+              collect_metrics "success"
+              notify "Deployment completed successfully" "success"
+          }
+
+          main
+          DEPLOY_SCRIPT
+
+          chmod +x deploy.sh
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create Environment Files
+        run: |
+          cat << EOF > .env
+          export APP_NAME="${{ env.APP_NAME }}"
+          export APP_PATH="${{ env.APP_PATH }}"
+          export APP_PORT=${{ env.APP_PORT }}
+          export ENVIRONMENT="${{ inputs.environment }}"
+          EOF
+
+          cat << EOF > .secrets
+          export WEBHOOK_URL="${{ secrets.WEBHOOK_URL }}"
+          EOF
+
+      - name: Pre-flight Checks
+        run: |
+          echo "Running pre-flight checks..."
+          ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "
+            df -h ${{ env.APP_PATH }} | tail -n1
+            test -w ${{ env.APP_PATH }} || exit 1
+            systemctl is-system-running || true
+          "
+
+      - name: Deploy
+        run: |
+          # Deploy files
+          scp -P ${{ env.SSH_PORT }} \
+            deploy.sh .env .secrets bin/${{ env.APP_NAME }} \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:~/
+
+          # Execute deployment
+          ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
+            "./deploy.sh"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa deploy.sh .env .secrets
+
+      - name: Verify Deployment
+        if: success()
+        run: |
+          sleep 5
+          curl -sf http://${{ env.SSH_HOST }}:${{ env.APP_PORT }}/health
+
+      - name: Notify Status
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "::notice::Deployment completed successfully"
+          else
+            echo "::error::Deployment failed"
+          fi
