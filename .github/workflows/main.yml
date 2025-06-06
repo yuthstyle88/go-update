@@ -63,27 +63,29 @@ jobs:
       run : |
         ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
          set -e  # หยุดทันทีถ้าเกิด error
+         echo $APP_NAME
          echo "Restart App..."
-          cd ${{ env.APP_PATH }}
+          cd "${APP_PATH}"
           
-          PIDS=$(pgrep -f "./${{ env.APP_NAME }}")
-
+          PIDS=$(pgrep -f "./${APP_NAME}")
+          
           # 🛑 Stop old process if exists
           if [ -n "$PIDS" ]; then
-            echo "Killing old processes: $PIDS"
-            kill -9 $PIDS
-            sleep 1
+        echo "Killing old processes: $PIDS"
+          kill -9 $PIDS
+          sleep 1
           fi
-
+          
           # 🔐 Load secrets
           source .secrets
-
-          # 🚀 Start new process
-          echo "Starting new process: ./${{ env.APP_NAME }}"
-          ./${{ env.APP_NAME }}
+        
+        # 🚀 Start new process
+        echo "Starting new process: ./${APP_NAME}"
+          ./${APP_NAME}
           
-          # nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
-         EOF 
+          # nohup ./${APP_NAME} > /dev/null 2>&1 &
+          
+        EOF 
 
     - name: Run health check and send webhook
       run: |
