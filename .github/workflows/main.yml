@@ -105,6 +105,7 @@ jobs:
           cat << EOF > .secrets
           export WEBHOOK_URL="${{ secrets.WEBHOOK_URL }}"
           EOF
+          ls -la
 
       - name: Check Server and Create Directory and Deploy
         run: |
