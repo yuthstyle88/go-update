@@ -1,7 +1,8 @@
-name: Initial Setup
+name: Build & Deploy Go App
+
 on:
   push:
-    branches: [ "dev" ]  # หรือ "master" ตาม branch หลักของคุณ
+    branches: [ "dev" ]
   workflow_dispatch:
     inputs:
       environment:
@@ -14,133 +15,71 @@ on:
           - staging
           - production
 
+env:
+  GO_VERSION: "1.24.3"
+
 jobs:
-  initial-setup:
+  deploy:
     runs-on: ubuntu-latest
+
     env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PORT: ${{ secrets.SSH_PORT }}
       APP_PATH: ${{ vars.APP_PATH }}
       APP_PORT: ${{ vars.APP_PORT }}
       APP_NAME: ${{ vars.APP_NAME }}
-      GO_VERSION: "1.24.3"
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Check Required Secrets
-        run: |
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "Error: SSH_PRIVATE_KEY is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SSH_HOST }}" ]; then
-            echo "Error: SSH_HOST is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SSH_USER }}" ]; then
-            echo "Error: SSH_USER is not set"
-            exit 1
-          fi
+    - name: 🔧 Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
 
-      - name: Build Application
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-          go build -v -ldflags="-w -s" -o bin/${{ env.APP_NAME }}
+    - name: 🛠️ Build Go Binary
+      run: |
+        mkdir -p bin
+        go build -ldflags="-w -s" -o bin/${APP_NAME}
+        chmod +x bin/${APP_NAME}
 
-      - name: Check Required Secrets
-        run: |
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "Error: SSH_PRIVATE_KEY is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SSH_HOST }}" ]; then
-            echo "Error: SSH_HOST is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SSH_USER }}" ]; then
-            echo "Error: SSH_USER is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SSH_PORT }}" ]; then
-            echo "Error: SSH_PORT is not set"
-            exit 1
-          fi
-      - name: Check Required Variables
-        run: |
-          if [ -z "${{ vars.APP_PATH }}" ]; then
-            echo "Error: APP_PATH variable is not set"
-            exit 1
-          fi
-          if [ -z "${{ vars.APP_PORT }}" ]; then
-            echo "Error: APP_PORT variable is not set"
-            exit 1
-          fi
-          if [ -z "${{ vars.APP_NAME }}" ]; then
-            echo "Error: APP_NAME variable is not set"
-            exit 1
-          fi    
+    - name: 📄 Generate .env
+      uses: SpicyPizza/create-envfile@v2.0
+      with:
+        envkey_APP_NAME: ${{ env.APP_NAME }}
+        envkey_APP_PORT: ${{ env.APP_PORT }}
+        envkey_ENVIRONMENT: ${{ inputs.environment }}
+        file_name: .env
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519  # เปลี่ยนจาก id_rsa เป็น id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          ssh-keyscan -p 53987 103.27.202.40 >> ~/.ssh/known_hosts
-      - name: Create Environment Files
-        run: |
-          pwd
-          cat << EOF > .env
-          APP_NAME="${{ env.APP_NAME }}"
-          APP_PORT=${{ env.APP_PORT }}
-          ENVIRONMENT="${{ inputs.environment }}"
-          EOF
+    - name: 📄 Generate .secrets
+      run: |
+        cat << EOF > .secrets
+        export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+        export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+        export AWS_REGION='us-east-1'
+        export DYNAMODB_ENDPOINT='http://localhost:4565'
+        EOF
 
-          cat << EOF > .secrets
-          export WEBHOOK_URL="${{ secrets.WEBHOOK_URL }}"
-          EOF
-          ls -la
+    - name: 🔐 SSH Setup
+      uses: webfactory/ssh-agent@v0.8.1
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Check Server and Create Directory and Deploy
-        run: |
-          echo "Copy file to  Server Deploy"
-          scp -P ${{ secrets.SSH_PORT }} .env .secrets \
-              bin/${{ env.APP_NAME }} \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/     
-          echo "Login to  Server and run app"
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            set -e  # หยุดทันทีถ้าเกิด error
-            echo "Start Deploy..."
-             # Deploy files
-            export AWS_ACCESS_KEY_ID=test
-            export AWS_SECRET_ACCESS_KEY=test
-            export AWS_REGION=us-east-1
-            export DYNAMODB_ENDPOINT=http://localhost:4565
-            cd  ${{ env.APP_PATH }}
-            nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
-          EOF
+    - name: 🚚 Deploy to Server (scp)
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        port: ${{ secrets.SSH_PORT }}
+        source: ".env,.secrets,bin/${{ env.APP_NAME }}"
+        target: "${{ env.APP_PATH }}"
 
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -f ~/.ssh/id_ed25519 deploy.sh .env .secrets
-
-#      - name: Verify Deployment
-#        if: success()
-#        run: |
-#          sleep 5
-#          curl -sf http://127.0.0.1:${{ env.APP_PORT }}/health
-
-#      - name: Notify Status
-#        if: always()
-#        run: |
-#          if [[ "${{ job.status }}" == "success" ]]; then
-#            echo "::notice::Deployment completed successfully"
-#          else
-#            echo "::error::Deployment failed"
-#          fi
+    - name: 🚀 Run App via SSH
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          cd ${{ env.APP_PATH }}
+          source .secrets
+          nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
