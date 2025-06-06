@@ -70,20 +70,20 @@ jobs:
          PIDS=$(pgrep -f "./${APP_NAME}")
          echo "Killing old processes: $PIDS"
          # 🛑 Stop old process if exists
-#          if [ -n "$PIDS" ]; then
-#        echo "Killing old processes: $PIDS"
-#          kill -9 $PIDS
-#          sleep 1
-#          fi
-#
-#          # 🔐 Load secrets
-#          source .secrets
-#
-#        # 🚀 Start new process
-#        echo "Starting new process: ./${APP_NAME}"
-#          ./${APP_NAME}
-#
-          # nohup ./${APP_NAME} > /dev/null 2>&1 &
+         #          if [ -n "$PIDS" ]; then
+         #        echo "Killing old processes: $PIDS"
+         #          kill -9 $PIDS
+         #          sleep 1
+         #          fi
+         #
+         #          # 🔐 Load secrets
+         #          source .secrets
+         #
+         #        # 🚀 Start new process
+         #        echo "Starting new process: ./${APP_NAME}"
+         #          ./${APP_NAME}
+         #
+         # nohup ./${APP_NAME} > /dev/null 2>&1 &
           
         EOF 
 
