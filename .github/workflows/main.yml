@@ -63,14 +63,11 @@ jobs:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: 🚚 Deploy files to server
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: ".env,.secrets,bin/${{ env.APP_NAME }}"
-        target: "${{ env.APP_PATH }}"
+      run: |
+        echo "Copy file to  Server Deploy"
+        scp -P ${{ secrets.SSH_PORT }} .env .secrets \
+            bin/${{ env.APP_NAME }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/  
 
     - name: 🚀 Restart app on server (no basename)
       uses: appleboy/ssh-action@v0.1.10
