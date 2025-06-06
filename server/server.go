@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // pprof magic
@@ -40,6 +41,7 @@ func setupRouter(ctx context.Context, testRouter bool, initDB bool) (context.Con
 
 // StartServer starts the component updater server on port 8192
 func StartServer() {
+	_ = godotenv.Load(".env")
 	serverCtx, log := logger.Setup(context.Background())
 	log.Info("Starting server", "prefix", "main")
 
