@@ -86,7 +86,7 @@ jobs:
          ./${{ env.APP_NAME }}
 
          # nohup ./${APP_NAME} > /dev/null 2>&1 &
-          
+         trap 'echo "Error at line $LINENO"; exit 1' ERR        
         EOF 
 
     - name: Run health check and send webhook
