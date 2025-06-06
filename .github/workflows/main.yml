@@ -32,7 +32,7 @@ jobs:
       run: |
         cat << EOF > .env
         APP_PORT=${{ env.APP_PORT }}
-          ENVIRONMENT="${{ inputs.environment }}"
+        ENVIRONMENT="${{ inputs.environment }}"
         EOF
     - name: 📄 Create .secrets file
       run: |
@@ -60,13 +60,10 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/  
 
     - name: 🚀 Restart app on server (no basename)
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
+      run : |
+        ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+         set -e  # หยุดทันทีถ้าเกิด error
+         echo "Restart App..."
           set -e
           cd ${{ env.APP_PATH }}
 
@@ -85,7 +82,7 @@ jobs:
           ./${{ env.APP_NAME }}
           
           # nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
-          
+         EOF 
 
     - name: Run health check and send webhook
       run: |
