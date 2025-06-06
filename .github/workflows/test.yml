@@ -1,28 +1,44 @@
-name: "Test"
+name: Build & Deploy App
 
 on:
   push:
-    branches: [master]
-  pull_request:
+    branches:
+      - main
+
+env:
+  APP_NAME: main
+  APP_PATH: /var/www/dev/go-updater
 
 jobs:
-  test:
+  build-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: 📥 Checkout source code
+      uses: actions/checkout@v3
 
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        with:
-          go-version: "1.24"
-          check-latest: true
+    - name: 🛠️ Build app (Go)
+      run: |
+        go build -o $APP_NAME main.go
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7.0.1
-        with:
-          version: v2.0.2
+    - name: 📤 Copy files to server
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        source: ".env,.secrets,main,app.sh"
+        target: "${{ env.APP_PATH }}"
 
-      - name: Test
-        run: make test
+    - name: 🚀 Restart app on server
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          cd ${{ env.APP_PATH }}
+          chmod +x app.sh
+          ./app.sh restart
