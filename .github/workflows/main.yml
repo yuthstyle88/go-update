@@ -79,6 +79,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
           cd ${{ env.APP_PATH }}
@@ -96,6 +97,7 @@ jobs:
           # 🚀 Start new process
           echo "Starting new process: ./${{ env.APP_NAME }}"
           nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
+    
 
     - name: Run health check and send webhook
       run: |
