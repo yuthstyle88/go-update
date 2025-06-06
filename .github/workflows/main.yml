@@ -68,6 +68,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         source: ".env,.secrets,bin/${{ env.APP_NAME }}"
         target: "${{ env.APP_PATH }}"
 
