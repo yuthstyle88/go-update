@@ -43,9 +43,8 @@ jobs:
     - name: 📄 Create .env file
       uses: SpicyPizza/create-envfile@v2.0
       with:
-        envkey_APP_NAME: ${{ env.APP_NAME }}
-        envkey_APP_PORT: ${{ env.APP_PORT }}
-        envkey_ENVIRONMENT: ${{ inputs.environment }}
+        APP_PORT: ${{ env.APP_PORT }}
+        ENVIRONMENT: ${{ inputs.environment }}
         file_name: .env
 
     - name: 📄 Create .secrets file
