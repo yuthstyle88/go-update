@@ -122,7 +122,7 @@ jobs:
             export AWS_REGION=us-east-1
             export DYNAMODB_ENDPOINT=http://localhost:4565
             cd  ${{ env.APP_PATH }}
-            ./${{ env.APP_NAME }} 
+            nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
           EOF
 
       - name: Cleanup
