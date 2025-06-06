@@ -63,32 +63,32 @@ jobs:
       run : |
         ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
          set -e  # หยุดทันทีถ้าเกิด error
-         echo $APP_NAME
+         echo "${APP_PATH}"        
          echo "Restart App..."
-          cd "${APP_PATH}"
+         cd "${APP_PATH}"
           
-          PIDS=$(pgrep -f "./${APP_NAME}")
-          
-          # 🛑 Stop old process if exists
-          if [ -n "$PIDS" ]; then
-        echo "Killing old processes: $PIDS"
-          kill -9 $PIDS
-          sleep 1
-          fi
-          
-          # 🔐 Load secrets
-          source .secrets
-        
-        # 🚀 Start new process
-        echo "Starting new process: ./${APP_NAME}"
-          ./${APP_NAME}
-          
+         PIDS=$(pgrep -f "./${APP_NAME}")
+         echo "Killing old processes: $PIDS"
+         # 🛑 Stop old process if exists
+#          if [ -n "$PIDS" ]; then
+#        echo "Killing old processes: $PIDS"
+#          kill -9 $PIDS
+#          sleep 1
+#          fi
+#
+#          # 🔐 Load secrets
+#          source .secrets
+#
+#        # 🚀 Start new process
+#        echo "Starting new process: ./${APP_NAME}"
+#          ./${APP_NAME}
+#
           # nohup ./${APP_NAME} > /dev/null 2>&1 &
           
         EOF 
 
     - name: Run health check and send webhook
       run: |
-        STATUS=$(curl -v --max-time 2 -o /dev/null -s -w "%{http_code}" http://localhost:${{ vars.APP_PORT }}/health)        
+        STATUS=$(curl -v --max-time 2 -o /dev/null -s -w "%{http_code}" http://localhost:${APP_PORT}/health)        
         echo "Health status: $STATUS"
  
