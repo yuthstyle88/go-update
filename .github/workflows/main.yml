@@ -283,11 +283,12 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          install -m 600 -D /dev/null ~/.ssh/id_ed25519
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          echo "StrictHostKeyChecking no" > ~/.ssh/config
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_ed25519
+          echo "StrictHostKeyChecking accept-new" > ~/.ssh/config
 
       - name: Create Environment Files
         run: |
