@@ -94,3 +94,18 @@ jobs:
           # 🚀 Start new process
           echo "Starting new process: ./${{ env.APP_NAME }}"
           nohup ./${{ env.APP_NAME }} > /dev/null 2>&1 &
+
+    - name: Run health check and send webhook
+      run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${{ vars.APP_PORT }}/health)
+
+          if [ "$STATUS" -eq 200 ]; then
+            curl -X POST ${{ secrets.WEBHOOK_URL }} \
+              -H "Content-Type: application/json" \
+              -d '{"status":"OK","message":"✅ Health check passed"}'
+          else
+            curl -X POST ${{ secrets.WEBHOOK_URL }} \
+              -H "Content-Type: application/json" \
+              -d '{"status":"FAIL","message":"❌ Health check failed with status '$STATUS'"}'
+            exit 1
+          fi      
