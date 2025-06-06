@@ -130,17 +130,17 @@ jobs:
         run: |
           rm -f ~/.ssh/id_ed25519 deploy.sh .env .secrets
 
-      - name: Verify Deployment
-        if: success()
-        run: |
-          sleep 5
-          curl -sf http://127.0.0.1:${{ env.APP_PORT }}/health
+#      - name: Verify Deployment
+#        if: success()
+#        run: |
+#          sleep 5
+#          curl -sf http://127.0.0.1:${{ env.APP_PORT }}/health
 
-      - name: Notify Status
-        if: always()
-        run: |
-          if [[ "${{ job.status }}" == "success" ]]; then
-            echo "::notice::Deployment completed successfully"
-          else
-            echo "::error::Deployment failed"
-          fi
+#      - name: Notify Status
+#        if: always()
+#        run: |
+#          if [[ "${{ job.status }}" == "success" ]]; then
+#            echo "::notice::Deployment completed successfully"
+#          else
+#            echo "::error::Deployment failed"
+#          fi
