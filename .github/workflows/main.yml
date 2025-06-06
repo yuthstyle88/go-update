@@ -1,5 +1,7 @@
 name: Initial Setup
 on:
+  push:
+    branches: [ "dev" ]  # หรือ "master" ตาม branch หลักของคุณ
   workflow_dispatch:
     inputs:
       environment:
@@ -38,12 +40,19 @@ jobs:
 
       - name: Check Required Secrets
         run: |
-          for secret in "SSH_PRIVATE_KEY" "WEBHOOK_URL"; do
-            if [ -z "${{ secrets[secret] }}" ]; then
-              echo "Error: $secret is not set"
-              exit 1
-            fi
-          done
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "Error: SSH_PRIVATE_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "Error: SSH_HOST is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_USER }}" ]; then
+            echo "Error: SSH_USER is not set"
+            exit 1
+          fi
+      
 
       - name: Test Application
         run: |
