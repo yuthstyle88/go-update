@@ -247,14 +247,47 @@ jobs:
           DEPLOY_SCRIPT
 
           chmod +x deploy.sh
+      - name: Check Required Secrets
+        run: |
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "Error: SSH_PRIVATE_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "Error: SSH_HOST is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_USER }}" ]; then
+            echo "Error: SSH_USER is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_PORT }}" ]; then
+            echo "Error: SSH_PORT is not set"
+            exit 1
+          fi
+      - name: Check Required Variables
+        run: |
+          if [ -z "${{ vars.APP_PATH }}" ]; then
+            echo "Error: APP_PATH variable is not set"
+            exit 1
+          fi
+          if [ -z "${{ vars.APP_PORT }}" ]; then
+            echo "Error: APP_PORT variable is not set"
+            exit 1
+          fi
+          if [ -z "${{ vars.APP_NAME }}" ]; then
+            echo "Error: APP_NAME variable is not set"
+            exit 1
+          fi    
 
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+          install -m 600 -D /dev/null ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          echo "StrictHostKeyChecking no" > ~/.ssh/config
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_ed25519
 
       - name: Create Environment Files
         run: |
@@ -277,6 +310,13 @@ jobs:
             test -w ${{ env.APP_PATH }} || exit 1
             systemctl is-system-running || true
           "
+      - name: Check Go Installation
+        run: |
+          if ! command -v go &> /dev/null; then
+          echo "Error: Go is not installed"
+          exit 1
+          fi
+          go version
 
       - name: Deploy
         run: |
@@ -292,7 +332,7 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          rm -f ~/.ssh/id_rsa deploy.sh .env .secrets
+          rm -f ~/.ssh/id_ed25519 deploy.sh .env .secrets
 
       - name: Verify Deployment
         if: success()
