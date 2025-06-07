@@ -9,7 +9,7 @@ jobs:
 
     env:
       BASE_NAME: go-updater
-      APP_PORT: ${{ vars.APP_PORT }}
+      APP_PORT: 8191
       APP_PATH: ${{ vars.APP_PATH }}
 
     steps:
