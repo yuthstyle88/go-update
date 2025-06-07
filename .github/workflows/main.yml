@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: "1.24.3"
     - name: Set APP_NAME
-      run: echo "APP_NAME=${{ env.BASE_NAME }}-development" >> $GITHUB_ENV
+      run: echo "APP_NAME=${{ env.BASE_NAME }}-dev" >> $GITHUB_ENV
 
     - name: 🛠️ Build app and define APP_NAME
       run: |
