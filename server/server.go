@@ -45,7 +45,7 @@ func StartServer() {
 
 	go func() {
 		// setup metrics on another non-public port 9090
-		err := http.ListenAndServe(":9090", middleware.Metrics())
+		err := http.ListenAndServe(":9091", middleware.Metrics())
 		if err != nil {
 			sentry.CaptureException(err)
 			logger.Panic(log, "Metrics HTTP server failed to start", err)
@@ -57,7 +57,7 @@ func StartServer() {
 		// pprof attaches routes to default serve mux
 		// host:6061/debug/pprof/
 		go func() {
-			if err := http.ListenAndServe(":6061", http.DefaultServeMux); err != nil {
+			if err := http.ListenAndServe(":6062", http.DefaultServeMux); err != nil {
 				log.Error("Server failed to start", "error", err)
 			}
 		}()
