@@ -2,14 +2,14 @@ name: Build & Deploy Go App
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "dev" ]
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
       BASE_NAME: go-updater
-      APP_PORT: 8192
-      LISTEN_APP_PORT: 8090
+      APP_PORT: 8191
+      LISTEN_APP_PORT: 8089
       APP_PATH: ${{ vars.APP_PATH }}
 
     steps:
@@ -21,7 +21,7 @@ jobs:
         with:
           go-version: "1.24.0"
       - name: Set APP_NAME
-        run: echo "APP_NAME=${{ env.BASE_NAME }}-prod" >> $GITHUB_ENV
+        run: echo "APP_NAME=${{ env.BASE_NAME }}-dev" >> $GITHUB_ENV
 
       - name: 🛠️ Build app and define APP_NAME
         run: |
