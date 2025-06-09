@@ -6,7 +6,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     env:
       BASE_NAME: go-updater
       APP_PORT: 8192
