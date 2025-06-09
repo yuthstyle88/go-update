@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // pprof magic
@@ -40,12 +41,14 @@ func setupRouter(ctx context.Context, testRouter bool) (context.Context, *chi.Mu
 
 // StartServer starts the component updater server on port 8192
 func StartServer() {
+	_ = godotenv.Load(".env")
 	serverCtx, log := logger.Setup(context.Background())
 	log.Info("Starting server", "prefix", "main")
 
 	go func() {
 		// setup metrics on another non-public port 9090
-		err := http.ListenAndServe(":9090", middleware.Metrics())
+		listenPort := ":" + os.Getenv("LISTEN_APP_PORT")
+		err := http.ListenAndServe(listenPort, middleware.Metrics())
 		if err != nil {
 			sentry.CaptureException(err)
 			logger.Panic(log, "Metrics HTTP server failed to start", err)
@@ -64,7 +67,7 @@ func StartServer() {
 	}
 
 	serverCtx, r := setupRouter(serverCtx, false)
-	port := ":8192"
+	port := ":" + os.Getenv("APP_PORT")
 	log.Info("Starting HTTP server", "url", fmt.Sprintf("http://localhost%s", port))
 
 	srv := http.Server{

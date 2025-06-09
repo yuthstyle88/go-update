@@ -1,0 +1,81 @@
+name: Build & Deploy Go App
+
+on:
+  push:
+    branches: [ "master" ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      BASE_NAME: go-updater
+      APP_PORT: 8192
+      LISTEN_APP_PORT: 8090
+      APP_PATH: ${{ vars.APP_PATH }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5.5.0
+        with:
+          go-version: "1.24.3"
+      - name: Set APP_NAME
+        run: echo "APP_NAME=${{ env.BASE_NAME }}-prod" >> $GITHUB_ENV
+
+      - name: 🛠️ Build app and define APP_NAME
+        run: |
+          mkdir -p bin
+          go build -ldflags="-w -s" -o bin/${{ env.APP_NAME }}
+          chmod +x bin/${{ env.APP_NAME }}
+      - name: 📄 Create .env file
+        run: |
+          cat << EOF > .env
+          APP_PORT=${{ env.APP_PORT }}
+          LISTEN_APP_PORT=${{ env.LISTEN_APP_PORT }}
+          ENVIRONMENT="${{ inputs.environment }}"
+          EOF
+      - name: 📄 Create .secrets file
+        run: |
+          cat << EOF > .secrets
+          export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+          export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          export AWS_REGION='us-east-1'
+          export DYNAMODB_ENDPOINT='http://localhost:4566'
+          EOF
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: 🗝️ Add SSH host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Restart app on server (no basename)
+        run : |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_PATH }}
+            echo "=== ตรวจสอบ process เก่า ==="
+            PIDS=$(pgrep -f "./${{ env.APP_NAME }}" || true)
+              if [ -n "$PIDS" ]; then
+                echo "Killing: $PIDS"
+                kill -9 $PIDS
+                sleep 1
+              else
+                echo "No old process found"
+              fi
+          EOF
+          echo "Copy file to Server Deploy"
+          scp -P ${{ secrets.SSH_PORT }} .env .secrets \
+            bin/${{ env.APP_NAME }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/ 
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd ${{ env.APP_PATH }}
+          chmod +x ${{ env.APP_NAME }}
+          nohup ./$(echo ${{ env.APP_NAME }}) > app.log 2>&1 &
+          echo "Started ${{ env.APP_NAME }}"
+          EOF
