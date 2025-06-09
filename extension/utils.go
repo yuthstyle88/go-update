@@ -45,12 +45,12 @@ func GetS3ExtensionBucketHost(id string) string {
 		return GetS3TorExtensionBucketHost()
 	}
 
-	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST", "brave-core-ext.s3.brave.com")
+	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST", "brave-core-ext.s3.ibrowe.com")
 }
 
 // GetS3TorExtensionBucketHost returns the url to use for accessing tor client crx
 func GetS3TorExtensionBucketHost() string {
-	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor.bravesoftware.com")
+	return lookupEnvFallback("S3_EXTENSIONS_BUCKET_HOST_TOR", "tor.ibrowesoft.com")
 }
 
 // GetUpdateStatus returns the status of an update response for an extension
@@ -63,5 +63,5 @@ func GetUpdateStatus(extension Extension) string {
 
 // GetComponentUpdaterHost returns the url to use for extension updates
 func GetComponentUpdaterHost() string {
-	return lookupEnvFallback("COMPONENT_UPDATER_HOST", "componentupdater.brave.com")
+	return lookupEnvFallback("COMPONENT_UPDATER_HOST", "componentupdater.ibrowe.com")
 }
