@@ -76,5 +76,5 @@ jobs:
           cd ${{ env.APP_PATH }}
           chmod +x ${{ env.APP_NAME }}
           nohup ./$(echo ${{ env.APP_NAME }}) > app.log 2>&1 &
-          echo "Started ${{ env.APP_NAME }}"
+          echo "--Started ${{ env.APP_NAME }}"
           EOF
