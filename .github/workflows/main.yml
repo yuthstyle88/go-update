@@ -61,7 +61,6 @@ jobs:
       - name: 🚀 Restart app on server (no basename)
         run: |
           set -e
-
           echo "Deploy to Server"
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "set -e; \
