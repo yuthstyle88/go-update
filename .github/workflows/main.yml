@@ -1,0 +1,91 @@
+name: Build & Deploy Go App
+
+on:
+  push:
+    branches:
+      - master     # สำหรับ prod
+      - dev    # สำหรับ dev
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NAME: ${{ github.ref_name == 'master' && 'prod' || 'dev' }}
+      BASE_NAME: go-updater
+      APP_PORT: ${{ github.ref_name == 'master' && '8192' || '8191' }}
+      LISTEN_APP_PORT: ${{ github.ref_name == 'master' && '8090' || '8089' }}
+      LOCALSTACK_PORT: ${{ github.ref_name == 'master' && '4566' || '4565' }}
+      APP_PATH: ${{ vars.APP_PATH }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5.5.0
+        with:
+          go-version: "1.24.0"
+      - name: Set APP_NAME
+        run: |
+          echo "Env: ${{ github.ref_name }}"
+          echo "APP_NAME=${{ env.BASE_NAME }}-${{ env.NAME }}" >> $GITHUB_ENV
+
+      - name: 🛠️ Build app and define APP_NAME
+        run: |
+          mkdir -p bin
+          go build -ldflags="-w -s" -o bin/${{ env.APP_NAME }}
+          chmod +x bin/${{ env.APP_NAME }}
+      - name: 📄 Create .env file
+        run: |
+          cat << EOF > .env
+          APP_PORT=${{ env.APP_PORT }}
+          LISTEN_APP_PORT=${{ env.LISTEN_APP_PORT }}
+          ENVIRONMENT="${{ env.NAME }}"
+          EOF
+      - name: 📄 Create .secrets file
+        run: |
+          cat << EOF > .secrets
+          export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+          export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          export AWS_REGION='ap-southeast-1'
+          EOF
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: 🗝️ Add SSH host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Restart app on server (no basename)
+        run: |
+          set -e
+          echo "Deploy to Server"
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             mkdir -p '${{ env.APP_PATH }}'; \
+             if sudo -n -v 2>/dev/null && sudo -n systemctl is-active --quiet go-updater.service; then \
+               sudo -n systemctl stop go-updater.service; \
+             fi; \
+             rm -f '${{ env.APP_PATH }}/.env' '${{ env.APP_PATH }}/.secrets' '${{ env.APP_PATH }}/${{ env.APP_NAME }}' || true"
+
+          echo "Copy file to Server Deploy"
+          scp -P ${{ secrets.SSH_PORT }} \
+            .env .secrets \
+            bin/${{ env.APP_NAME }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:"${{ env.APP_PATH }}/"
+
+          echo "Start app on Server Deploy"
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             cd '${{ env.APP_PATH }}'; \
+             chmod 664 .env .secrets || true; \
+             chmod 775 '${{ env.APP_NAME }}' || true; \
+             if sudo -n -v 2>/dev/null; then \
+               sudo -n systemctl daemon-reload; \
+               sudo -n systemctl restart go-updater.service; \
+               sudo -n systemctl --no-pager -l status go-updater.service | head -n 20; \
+             else \
+               echo 'skip restart (no sudo NOPASSWD)'; \
+             fi"
