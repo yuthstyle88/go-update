@@ -82,7 +82,6 @@ jobs:
             cd ${{ env.APP_PATH }}
             source .secrets
             chmod +x ${{ env.APP_NAME }}
-            
             echo "Reload systemd config"
             s systemctl daemon-reload
 
