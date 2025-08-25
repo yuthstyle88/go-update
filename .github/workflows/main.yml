@@ -60,34 +60,34 @@ jobs:
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: 🚀 Restart app on server (no basename)
-        run : |
-          # --- Stop old service (via sudo -S) ---
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-            set -e  
-            cd ${{ env.APP_PATH }}
-            echo "=== Restart service via systemd ==="
-            if s systemctl is-active --quiet go-updater.service; then
-              echo "Stopping old service..."
-              s systemctl stop go-updater.service
-            else
-              echo "No old service running"
-            fi
-          EOF
-          
+        run: |
+          set -e
+
+          echo "Deploy to Server"
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             mkdir -p '${{ env.APP_PATH }}'; \
+             if sudo -n -v 2>/dev/null && sudo -n systemctl is-active --quiet go-updater.service; then \
+               sudo -n systemctl stop go-updater.service; \
+             fi; \
+             rm -f '${{ env.APP_PATH }}/.env' '${{ env.APP_PATH }}/.secrets' '${{ env.APP_PATH }}/${{ env.APP_NAME }}' || true"
+
           echo "Copy file to Server Deploy"
-            scp -P ${{ secrets.SSH_PORT }} .env .secrets \
-              bin/${{ env.APP_NAME }} \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_PATH }}/ 
-            ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            cd ${{ env.APP_PATH }}
-            source .secrets
-            chmod +x ${{ env.APP_NAME }}
-            echo "Reload systemd config"
-            s systemctl daemon-reload
+          scp -P ${{ secrets.SSH_PORT }} \
+            .env .secrets \
+            bin/${{ env.APP_NAME }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:"${{ env.APP_PATH }}/"
 
-            echo "Start or restart service..."
-            s systemctl restart go-updater.service
-
-            echo "Check status"
-            s systemctl --no-pager -l status go-updater.service | head -n 30
-          EOF
+          echo "Start app on Server Deploy"
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             cd '${{ env.APP_PATH }}'; \
+             chmod 664 .env .secrets || true; \
+             chmod 775 '${{ env.APP_NAME }}' || true; \
+             if sudo -n -v 2>/dev/null; then \
+               sudo -n systemctl daemon-reload; \
+               sudo -n systemctl restart go-updater.service; \
+               sudo -n systemctl --no-pager -l status go-updater.service | head -n 20; \
+             else \
+               echo 'skip restart (no sudo NOPASSWD)'; \
+             fi"
